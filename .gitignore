@@ -1,0 +1,11 @@
+# Secrets: Wi-Fi password, companion token, device tokens
+config.py
+companion/config.json
+
+# Build output
+build/
+firmware/micropython/
+firmware/*.uf2
+__pycache__/
+*.mpy
+.DS_Store

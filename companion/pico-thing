@@ -1,0 +1,85 @@
+#!/bin/sh
+# Control the pico-thing companion server (runs as a LaunchAgent).
+#   pico-thing start | stop | restart | status | logs | config
+set -e
+
+LABEL=com.pico-thing.companion
+DOMAIN="gui/$(id -u)"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+LOG="$HOME/Library/Logs/pico-thing-companion.log"
+# Resolve the real script location (this is usually run through a symlink)
+SELF=$0
+while [ -L "$SELF" ]; do
+    LINK=$(readlink "$SELF")
+    case "$LINK" in /*) SELF=$LINK ;; *) SELF=$(dirname "$SELF")/$LINK ;; esac
+done
+DIR=$(cd "$(dirname "$SELF")" && pwd)
+CONFIG="$DIR/config.json"
+
+loaded() { launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; }
+pid() { launchctl print "$DOMAIN/$LABEL" 2>/dev/null | awk '/^\tpid = / {print $3}'; }
+port() { sed -n 's/.*"port": *\([0-9]*\).*/\1/p' "$CONFIG" | head -1; }
+token() { sed -n 's/.*"token": *"\([0-9a-f]*\)".*/\1/p' "$CONFIG"; }
+
+wait_up() {
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        curl -s -m 1 -o /dev/null -H "X-Token: $(token)" "http://127.0.0.1:$(port)/status" && return 0
+        sleep 0.5
+    done
+    echo "server didn't come up - see: pico-thing logs" >&2
+    return 1
+}
+
+case "${1:-status}" in
+    start)
+        [ -f "$PLIST" ] || { echo "missing $PLIST" >&2; exit 1; }
+        if loaded; then
+            launchctl kickstart "$DOMAIN/$LABEL"
+        else
+            launchctl bootstrap "$DOMAIN" "$PLIST"
+        fi
+        wait_up && echo "started (pid $(pid), port $(port))"
+        ;;
+    stop)
+        if loaded; then
+            # bootout (not kill): KeepAlive would just restart a killed process
+            launchctl bootout "$DOMAIN/$LABEL"
+            echo "stopped (starts again at next login, or: pico-thing start)"
+        else
+            echo "not running"
+        fi
+        ;;
+    restart)
+        if loaded; then launchctl kickstart -k "$DOMAIN/$LABEL"; else launchctl bootstrap "$DOMAIN" "$PLIST"; fi
+        wait_up && echo "restarted (pid $(pid), port $(port))"
+        ;;
+    status)
+        if ! loaded || [ -z "$(pid)" ]; then
+            echo "stopped"
+            exit 1
+        fi
+        echo "running (pid $(pid), port $(port))"
+        curl -s -m 2 -H "X-Token: $(token)" "http://127.0.0.1:$(port)/status" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+ss = d["sessions"]
+print("sessions: %d%s" % (len(ss), "".join("\n  %-9s %s" % (s["state"], s["project"]) for s in ss)))
+print("needs attention:", d["attention"] or "no")
+print("tasks:", ", ".join("%s (%s)" % (t["name"], t["state"]) for t in d["tasks"]) or "none")
+' || echo "  (server not answering - see: pico-thing logs)"
+        ;;
+    logs)
+        exec tail -n 50 -f "$LOG"
+        ;;
+    config)
+        ${EDITOR:-vi} "$CONFIG"
+        "$0" restart
+        ;;
+    -h|--help|help)
+        sed -n '2,3p' "$SELF" | sed 's/^# \{0,1\}//'
+        ;;
+    *)
+        echo "usage: pico-thing start|stop|restart|status|logs|config" >&2
+        exit 2
+        ;;
+esac
