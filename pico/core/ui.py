@@ -4,7 +4,7 @@ import gc
 import math
 import sys
 import time
-from gfx import W, H, BG, FG, DIM, MUTED, PANEL, PANEL2, ACCENT
+from gfx import W, BG, FG, DIM, MUTED, PANEL, PANEL2, ACCENT
 
 HEADER = 48
 SNAP = 22     # taps this close to a button still count (fingers on a resistive panel land ~20px off)

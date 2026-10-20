@@ -2,7 +2,7 @@
 # through the companion server on the Mac (companion/server.py).
 import companion
 from gfx import wrap, W, BG, FG, DIM, MUTED, PANEL, PANEL2, ACCENT, ORANGE, GREEN, RED
-from ui import Screen, Button, HEADER
+from ui import Screen, Button
 
 STATE_COLORS = {'waiting': ORANGE, 'working': ACCENT, 'done': GREEN, 'idle': MUTED,
                 'running': ACCENT, 'failed': RED}

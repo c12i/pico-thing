@@ -1,7 +1,7 @@
 #!/bin/sh
 # Flash firmware/pico-thing.uf2: reboot the Pico into its USB bootloader (no BOOTSEL
-# button needed), copy the UF2, then put main.py/config.py back and remove any
-# filesystem .mpy/.py modules that would shadow the frozen ones.
+# button needed), copy the UF2, then put pico/main.py and pico/config.py back and
+# remove any filesystem .mpy/.py modules that would shadow the frozen ones.
 set -e
 cd "$(dirname "$0")"
 ROOT=$(cd .. && pwd)
@@ -23,11 +23,11 @@ echo "flashed, waiting for the Pico to restart..."
 for _ in $(seq 1 60); do ls /dev/cu.usbmodem* >/dev/null 2>&1 && break; sleep 0.5; done
 sleep 2
 
-STALE=$(for f in "$ROOT"/*.py; do b=$(basename "$f" .py); case "$b" in (main|config) ;; (*) printf '"%s.py","%s.mpy",' "$b" "$b" ;; esac; done)
+STALE=$(for f in "$ROOT"/pico/*/*.py; do b=$(basename "$f" .py); printf '"%s.py","%s.mpy",' "$b" "$b"; done)
 "$MPREMOTE" exec "import os
 for f in ($STALE):
     try:
         os.remove(f)
     except OSError:
-        pass" + cp "$ROOT/main.py" "$ROOT/config.py" : + reset
+        pass" + cp "$ROOT/pico/main.py" "$ROOT/pico/config.py" : + reset
 echo done

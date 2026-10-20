@@ -1,7 +1,7 @@
 # Pomodoro timer screen: progress ring, countdown and controls.
 import math
 import pomodoro
-from gfx import W, H, BG, FG, DIM, MUTED, PANEL, PANEL2, ACCENT, GREEN, RED, ORANGE
+from gfx import W, H, BG, FG, DIM, PANEL, PANEL2, ACCENT, GREEN, ORANGE
 from ui import Screen, Button, HEADER
 
 CX, CY, R = 152, 186, 118

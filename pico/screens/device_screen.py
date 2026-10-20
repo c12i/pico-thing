@@ -6,8 +6,8 @@ import os
 import sys
 import time
 import net
-from gfx import W, BG, FG, DIM, MUTED, PANEL, PANEL2, ACCENT, GREEN, YELLOW, ORANGE, RED
-from ui import Screen, Button, HEADER
+from gfx import W, BG, FG, DIM, PANEL, PANEL2, ACCENT, GREEN, YELLOW, ORANGE, RED
+from ui import Screen, Button
 
 REFRESH_S = 2
 STORAGE_REFRESH_S = 15

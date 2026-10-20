@@ -9,7 +9,7 @@
 
 ## Bedside lamp (bslamp2) via miIO
 The bedside lamp (`yeelink.light.bslamp2`, 192.168.1.14) has no Yeelight LAN Control,
-so the Pico talks to it over Xiaomi's miIO protocol (`miio.py`, already written and
+so the Pico talks to it over Xiaomi's miIO protocol (`pico/devices/miio.py`, already written and
 handshake-tested). It just needs the device token.
 
 1. Extract the token (log in with the Xiaomi account the lamp is registered to;
@@ -20,13 +20,13 @@ handshake-tested). It just needs the device token.
    python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
    .venv/bin/python token_extractor.py
    ```
-2. Copy the TOKEN for model `yeelink.light.bslamp2` / IP 192.168.1.14 into `config.py`:
+2. Copy the TOKEN for model `yeelink.light.bslamp2` / IP 192.168.1.14 into `pico/config.py`:
    ```python
    MIIO_TOKENS = {
        "192.168.1.14": "<32-char token>",
    }
    ```
-3. `firmware/flash.sh` (config.py is copied over), then check Menu → Lights → Bedside lamp.
+3. `firmware/flash.sh` (pico/config.py is copied over), then check Menu → Lights → Bedside lamp.
 
 ## Approve Claude Code permission prompts from the Pico
 A `PermissionRequest` hook can return an allow/deny decision. Plan: the hook waits up

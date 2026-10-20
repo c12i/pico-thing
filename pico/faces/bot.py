@@ -1,7 +1,6 @@
 # A little robot for the Productivity face. draw() renders one animation frame of
 # a mood into a ~100x180 box centred on cx; call it once a second with frame += 1.
-from array import array
-from gfx import BG, FG, DIM, MUTED, PANEL, PANEL2, WHITE, ACCENT, GREEN, BLUE, YELLOW, ORANGE, RED
+from gfx import BG, DIM, MUTED, PANEL2, WHITE, ACCENT, GREEN, BLUE, YELLOW, ORANGE, RED
 
 CAPTIONS = {
     'happy': 'You got this', 'overwhelmed': 'So much!', 'excited': 'Nice one!',

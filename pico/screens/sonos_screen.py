@@ -4,7 +4,7 @@ import time
 import config
 import sonos
 from gfx import W, BG, FG, DIM, MUTED, PANEL, PANEL2, ACCENT, GREEN, RED
-from ui import Screen, Button, HEADER
+from ui import Screen, Button
 
 REFRESH_S = 10
 OFFLINE_REFRESH_S = 30
