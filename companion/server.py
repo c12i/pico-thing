@@ -270,6 +270,112 @@ def read_todos():
     return {'items': [i[:120] for i in clean if i][:12], 'source': path.name}
 
 
+# --- Mac stats for the Pico's system face ------------------------------------
+# Sampled every ~2s, but only while the Pico has asked for them in the last two
+# minutes (so `top` isn't running for nothing).
+STATS_HIST = 44          # samples kept: one per column of the Pico's sparklines
+STATS_IDLE = 120         # stop sampling this long after the last /stats request
+stats = {'cpu': [], 'mem': [], 'rx': [], 'tx': [], 'info': {}}
+stats_wanted = {'at': 0.0, 'thread': None}
+
+
+def _out(argv):
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ''
+
+
+def _cpu_busy():
+    """Whole-machine CPU use (%), from top's second sample (the first is since boot)."""
+    lines = [l for l in _out(['top', '-l', '2', '-n', '0', '-s', '1']).splitlines() if 'CPU usage' in l]
+    m = re.search(r'([\d.]+)% idle', lines[-1]) if lines else None
+    return round(100 - float(m.group(1))) if m else 0
+
+
+def _memory():
+    """(used, total) bytes, used counted like Activity Monitor: active + wired + compressed."""
+    out = _out(['vm_stat'])
+    page = int((re.search(r'page size of (\d+)', out) or [0, 16384])[1])
+    pages = {k.strip(): int(v.strip(' .')) for k, v in re.findall(r'^(Pages [^:]+):\s+(\d+)', out, re.M)}
+    used = (pages.get('Pages active', 0) + pages.get('Pages wired down', 0)
+            + pages.get('Pages occupied by compressor', 0)) * page
+    total = int(_out(['sysctl', '-n', 'hw.memsize']).strip() or 0)
+    return used, total
+
+
+def _net_bytes():
+    """(received, sent) bytes so far on the en* interfaces."""
+    rx = tx = 0
+    for line in _out(['netstat', '-ibn']).splitlines():
+        f = line.split()
+        if len(f) >= 10 and f[0].startswith('en') and f[2].startswith('<Link'):
+            try:
+                rx += int(f[-5]); tx += int(f[-2])
+            except ValueError:
+                pass
+    return rx, tx
+
+
+def _battery():
+    m = re.search(r'(\d+)%; ([a-z ]+);', _out(['pmset', '-g', 'batt']))
+    return (int(m.group(1)), m.group(2).strip() in ('charging', 'charged', 'finishing charge')) if m else (None, False)
+
+
+def _uptime():
+    m = re.search(r'sec = (\d+)', _out(['sysctl', '-n', 'kern.boottime']))
+    return int(time.time() - int(m.group(1))) if m else 0
+
+
+def _push(key, v):
+    stats[key] = (stats[key] + [v])[-STATS_HIST:]
+
+
+def sample_stats():
+    last_net = None
+    while True:
+        if time.time() - stats_wanted['at'] > STATS_IDLE:
+            last_net = None
+            time.sleep(2)
+            continue
+        t0 = time.time()
+        cpu = _cpu_busy()  # takes about a second
+        used, total = _memory()
+        rx, tx = _net_bytes()
+        now = time.time()
+        rx_k = tx_k = 0
+        if last_net:
+            dt = max(now - last_net[0], 0.1)
+            rx_k = max(0, round((rx - last_net[1]) / dt / 1024))
+            tx_k = max(0, round((tx - last_net[2]) / dt / 1024))
+        last_net = (now, rx, tx)
+        battery, charging = _battery()
+        disk = shutil.disk_usage('/System/Volumes/Data' if os.path.exists('/System/Volumes/Data') else '/')
+        with lock:
+            _push('cpu', cpu)
+            _push('mem', round(100 * used / total) if total else 0)
+            _push('rx', rx_k)
+            _push('tx', tx_k)
+            stats['info'] = {
+                'mem_used': round(used / 2**30, 1), 'mem_total': round(total / 2**30),
+                'load': [round(x, 2) for x in os.getloadavg()],
+                'battery': battery, 'charging': charging,
+                'disk_used': round(disk.used / 1e9), 'disk_total': round(disk.total / 1e9),
+                'uptime': _uptime(), 'cores': os.cpu_count() or 0,
+                'host': ascii_text(os.uname().nodename.split('.')[0])[:16],
+            }
+        time.sleep(max(0.0, 2 - (time.time() - t0)))
+
+
+def stats_reply():
+    stats_wanted['at'] = time.time()
+    if stats_wanted['thread'] is None:
+        stats_wanted['thread'] = threading.Thread(target=sample_stats, daemon=True)
+        stats_wanted['thread'].start()
+    with lock:
+        return {'cpu': stats['cpu'], 'mem': stats['mem'], 'rx': stats['rx'], 'tx': stats['tx'], **stats['info']}
+
+
 def status():
     with lock:
         ss = sorted(sessions.values(), key=lambda s: -s['updated'])[:6]
@@ -315,6 +421,8 @@ class Handler(BaseHTTPRequestHandler):
             pico['ip'] = self.client_address[0]
         if url.path == '/status':
             self._reply(200, status())
+        elif url.path == '/stats':
+            self._reply(200, stats_reply())
         elif url.path == '/todos':
             self._reply(200, read_todos())
         elif url.path == '/task':

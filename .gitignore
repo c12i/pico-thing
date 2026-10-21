@@ -1,11 +1,11 @@
 # Secrets: Wi-Fi password, companion token, device tokens
-config.py
+config.toml
 companion/config.json
 
 # Build output
-build/
-firmware/micropython/
-firmware/*.uf2
+target/
 __pycache__/
-*.mpy
 .DS_Store
+
+# The simulator's saved settings
+sim/settings.json

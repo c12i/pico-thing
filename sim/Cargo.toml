@@ -1,0 +1,22 @@
+[package]
+name = "pico-thing-sim"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Run pico-thing's app in a terminal: the Pico's 48x16 screen, mouse clicks as taps"
+
+[dependencies]
+thing = { path = "../core" }
+ratatui = "0.30.2"
+crossterm = "0.29"
+serde_json = "1"
+embassy-futures = "0.1"
+
+[dev-dependencies]
+# The screenshots example draws with the firmware's font
+embedded-graphics = "0.8.2"
+embedded-graphics-unicodefonts = "0.2.0"
+png = "0.17"
+
+[patch.crates-io]
+ratatui-widgets = { path = "../patches/ratatui-widgets" }
